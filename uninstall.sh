@@ -219,6 +219,7 @@ safe_uninstall_daed() {
     stop_disable_service daed
     remove_pkg_if_installed "$PKG_MGR" luci-i18n-daed-zh-cn
     remove_pkg_if_installed "$PKG_MGR" luci-app-daed
+    remove_pkg_if_installed "$PKG_MGR" daed
     remove_paths /usr/bin/daed /usr/share/daed /etc/init.d/daed /var/log/daed
 
     if [ "$DELETE_CONFIG" -eq 1 ]; then

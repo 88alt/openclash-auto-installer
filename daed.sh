@@ -204,6 +204,8 @@ maybe_update_pkg_index() {
 
 install_luci_daed() {
     PKG_MGR="$1"
+    CORE_URL=""
+    CORE_PKG=""
 
     if [ "$SKIP_LUCI" = "1" ]; then
         warn "已按参数跳过安装 LuCI DAED 界面"
@@ -226,10 +228,19 @@ install_luci_daed() {
             I18N_PATTERN='luci-i18n-daed-zh-cn_.*_all-openwrt-24\.10\.ipk$'
             ;;
         apk)
+            CORE_PATTERN="daed-.*-${DISTRIB_ARCH}-openwrt-25\\.12\\.apk$"
             LUCI_PATTERN='luci-app-daed-.*-openwrt-25\.12\.apk$'
             I18N_PATTERN='luci-i18n-daed-zh-cn-.*-openwrt-25\.12\.apk$'
             ;;
     esac
+
+    if [ "$PKG_MGR" = "apk" ]; then
+        CORE_URL="$(find_luci_asset_url "$CORE_PATTERN")"
+        if [ -z "$CORE_URL" ]; then
+            warn "上游未发布适用于 ${DISTRIB_ARCH:-unknown} 的 OpenWrt 25.12 daed APK；无法安装 LuCI DAED 界面"
+            return 0
+        fi
+    fi
 
     LUCI_URL="$(find_luci_asset_url "$LUCI_PATTERN")"
     I18N_URL="$(find_luci_asset_url "$I18N_PATTERN")"
@@ -240,6 +251,14 @@ install_luci_daed() {
 
     LUCI_PKG="$TMP_ROOT/$(basename "$LUCI_URL")"
     I18N_PKG="$TMP_ROOT/$(basename "$I18N_URL")"
+    if [ -n "$CORE_URL" ]; then
+        CORE_PKG="$TMP_ROOT/$(basename "$CORE_URL")"
+        log "下载 OpenWrt daed: $(basename "$CORE_PKG")"
+        download_url "$CORE_URL" "$CORE_PKG" || {
+            warn "下载 OpenWrt daed 包失败；无法安装 LuCI DAED 界面"
+            return 0
+        }
+    fi
     log "下载 LuCI DAED: $(basename "$LUCI_PKG")"
     download_url "$LUCI_URL" "$LUCI_PKG" || {
         warn "下载 LuCI DAED 包失败；daed 后端已安装"
@@ -257,13 +276,13 @@ install_luci_daed() {
             opkg install luci-compat luci-lua-runtime zoneinfo-asia ||
                 warn "部分 LuCI DAED 依赖安装失败，将继续尝试安装界面包"
             opkg install --force-depends "$LUCI_PKG" "$I18N_PKG" ||
-                warn "LuCI DAED 界面安装失败；daed 后端仍可通过 2023 端口使用"
+                warn "LuCI DAED 界面安装失败；启用并启动 daed 后仍可通过 2023 端口使用"
             ;;
         apk)
-            apk add luci-compat luci-lua-runtime zoneinfo-asia ||
-                warn "部分 LuCI DAED 依赖安装失败，将继续尝试安装界面包"
-            apk add --allow-untrusted --force-broken-world "$LUCI_PKG" "$I18N_PKG" ||
-                warn "LuCI DAED 界面安装失败；daed 后端仍可通过 2023 端口使用"
+            apk add luci-compat zoneinfo-asia ||
+                warn "部分 LuCI DAED 依赖安装失败，将继续尝试安装 Release 包"
+            apk add --allow-untrusted "$CORE_PKG" "$LUCI_PKG" "$I18N_PKG" ||
+                warn "LuCI DAED 界面安装失败；启用并启动 daed 后仍可通过 2023 端口使用"
             ;;
     esac
 }
@@ -661,8 +680,15 @@ main() {
     log "最新正式版本: $LATEST_TAG"
 
     ensure_unzip
-    install_daed "$ASSET_ARCH" "$LATEST_TAG"
+    DAED_ENABLED_BEFORE="$(uci -q get daed.config.enabled 2>/dev/null || printf '0')"
+    case "$DAED_ENABLED_BEFORE" in
+        0|1) ;;
+        *) DAED_ENABLED_BEFORE="0" ;;
+    esac
     install_luci_daed "$PKG_MGR"
+    install_daed "$ASSET_ARCH" "$LATEST_TAG"
+    uci set daed.config.enabled="$DAED_ENABLED_BEFORE"
+    uci commit daed
     refresh_luci
     NEW_VER="$("$DAED_BIN" --version 2>/dev/null | awk '{print $NF}' | head -n1 || true)"
     log "安装后版本: ${NEW_VER:-unknown}"
@@ -683,7 +709,7 @@ main() {
     else
         warn "未检测到 LuCI DAED 界面，可通过 --skip-luci 跳过界面安装或检查软件源依赖"
     fi
-    log "Web 面板地址: http://路由器IP:2023"
+    log "启用并启动 daed 后，Web 面板地址: http://路由器IP:2023"
     log "daed 处理完成"
 }
 
