@@ -51,11 +51,11 @@ need_cmd() {
 ensure_unzip() {
     command -v unzip >/dev/null 2>&1 && return 0
 
-    if command -v opkg >/dev/null 2>&1; then
+    if [ "$PKG_MGR" = "opkg" ]; then
         log "安装解压依赖: unzip"
         opkg update || warn "opkg update 失败，将继续尝试安装 unzip"
         opkg install unzip || die "安装 unzip 失败"
-    elif command -v apk >/dev/null 2>&1; then
+    elif [ "$PKG_MGR" = "apk" ]; then
         log "安装解压依赖: unzip"
         apk update || warn "apk update 失败，将继续尝试安装 unzip"
         apk add unzip || die "安装 unzip 失败"
@@ -115,7 +115,10 @@ parse_args() {
 }
 
 detect_pkg_mgr() {
-    if command -v opkg >/dev/null 2>&1; then
+    # An active APK database takes precedence over a leftover opkg binary.
+    if command -v apk >/dev/null 2>&1 && [ -s /lib/apk/db/installed ]; then
+        printf 'apk'
+    elif command -v opkg >/dev/null 2>&1; then
         printf 'opkg'
     elif command -v apk >/dev/null 2>&1; then
         printf 'apk'
@@ -695,6 +698,8 @@ refresh_luci() {
 install_daed() {
     ASSET_ARCH="$1"
     TAG="$2"
+    # APK architectures without a dedicated package use the generic release.
+    [ -n "$TAG" ] || TAG="$(find_latest_tag)"
     ASSET_NAME="daed-linux-${ASSET_ARCH}.zip"
     RELEASE_BASE="https://github.com/$DAED_REPO/releases/download/$TAG"
     ARCHIVE="$TMP_ROOT/$ASSET_NAME"
@@ -712,6 +717,13 @@ install_daed() {
     [ -f "$SOURCE_DIR/daed-linux-${ASSET_ARCH}" ] || die "压缩包内未找到 daed 程序"
     [ -f "$SOURCE_DIR/geoip.dat" ] || die "压缩包内未找到 geoip.dat"
     [ -f "$SOURCE_DIR/geosite.dat" ] || die "压缩包内未找到 geosite.dat"
+
+    # Upstream MIPS archives may require glibc; OpenWrt normally uses musl.
+    SOURCE_BIN="$SOURCE_DIR/daed-linux-${ASSET_ARCH}"
+    chmod 755 "$SOURCE_BIN"
+    CORE_CHECK="$("$SOURCE_BIN" --version 2>&1)" ||
+        die "daed 核心无法在当前 CPU/ABI 或动态加载器环境运行，保留原核心: $CORE_CHECK"
+    [ -n "$CORE_CHECK" ] || die "daed 核心未返回版本信息，保留原核心"
 
     if [ -x "$DAED_INIT" ]; then
         "$DAED_INIT" stop >/dev/null 2>&1 || true

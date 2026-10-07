@@ -1,6 +1,20 @@
 #!/bin/sh
 set -eu
 
+detect_pkg_mgr() {
+    # Some APK firmware still ships the opkg executable without usable feeds.
+    if command -v apk >/dev/null 2>&1 && [ -s /lib/apk/db/installed ]; then
+        printf 'apk'
+    elif command -v opkg >/dev/null 2>&1; then
+        printf 'opkg'
+    elif command -v apk >/dev/null 2>&1; then
+        printf 'apk'
+    else
+        printf '%s\n' "[ERROR] 未检测到 opkg 或 apk" >&2
+        return 1
+    fi
+}
+
 TMP_ROOT="/tmp/plugin-update-check"
 OPENCLASH_API="https://api.github.com/repos/vernesong/OpenClash/releases/latest"
 PASSWALL_API="https://api.github.com/repos/Openwrt-Passwall/openwrt-passwall/releases/latest"
@@ -355,14 +369,7 @@ main() {
         exit 1
     fi
 
-    if command -v opkg >/dev/null 2>&1; then
-        PKG_MGR="opkg"
-    elif command -v apk >/dev/null 2>&1; then
-        PKG_MGR="apk"
-    else
-        printf '%s\n' "[ERROR] 未检测到 opkg 或 apk" >&2
-        exit 1
-    fi
+    PKG_MGR="$(detect_pkg_mgr)"
 
     log "开始检查插件更新状态"
     log "检测到包管理器: $PKG_MGR"

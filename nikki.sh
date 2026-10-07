@@ -1,6 +1,20 @@
 #!/bin/sh
 set -eu
 
+detect_pkg_mgr() {
+    # Some APK firmware still ships the opkg executable without usable feeds.
+    if command -v apk >/dev/null 2>&1 && [ -s /lib/apk/db/installed ]; then
+        printf 'apk'
+    elif command -v opkg >/dev/null 2>&1; then
+        printf 'opkg'
+    elif command -v apk >/dev/null 2>&1; then
+        printf 'apk'
+    else
+        printf '%s\n' "[ERROR] 未检测到 opkg 或 apk" >&2
+        return 1
+    fi
+}
+
 LOCKDIR="/tmp/nikki-install.lock"
 FEED_SCRIPT_URL="https://raw.githubusercontent.com/nikkinikki-org/OpenWrt-nikki/main/feed.sh"
 INSTALL_SCRIPT_URL="https://raw.githubusercontent.com/nikkinikki-org/OpenWrt-nikki/main/install.sh"
@@ -112,13 +126,7 @@ log "System release: ${REL_RAW:-unknown}"
 need_cmd wget
 need_cmd awk
 
-if command -v opkg >/dev/null 2>&1; then
-    PKG_MGR="opkg"
-elif command -v apk >/dev/null 2>&1; then
-    PKG_MGR="apk"
-else
-    die "未检测到 opkg 或 apk"
-fi
+PKG_MGR="$(detect_pkg_mgr)"
 
 log "检测到包管理器: $PKG_MGR"
 FIREWALL_STACK="$(detect_firewall_stack)"

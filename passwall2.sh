@@ -1,6 +1,20 @@
 #!/bin/sh
 set -eu
 
+detect_pkg_mgr() {
+    # Some APK firmware still ships the opkg executable without usable feeds.
+    if command -v apk >/dev/null 2>&1 && [ -s /lib/apk/db/installed ]; then
+        printf 'apk'
+    elif command -v opkg >/dev/null 2>&1; then
+        printf 'opkg'
+    elif command -v apk >/dev/null 2>&1; then
+        printf 'apk'
+    else
+        printf '%s\n' "[ERROR] 未检测到 opkg 或 apk" >&2
+        return 1
+    fi
+}
+
 LOCKDIR="/tmp/passwall2-install.lock"
 GH_API="https://api.github.com/repos/Openwrt-Passwall/openwrt-passwall2/releases/latest"
 GH_REPO_PAGE="https://github.com/Openwrt-Passwall/openwrt-passwall2"
@@ -261,13 +275,7 @@ if ! mkdir "$LOCKDIR" 2>/dev/null; then
     die "已有另一个 PassWall2 任务正在运行"
 fi
 
-if command -v opkg >/dev/null 2>&1; then
-    PKG_MGR="opkg"
-elif command -v apk >/dev/null 2>&1; then
-    PKG_MGR="apk"
-else
-    die "未检测到 opkg 或 apk，当前系统暂不支持"
-fi
+PKG_MGR="$(detect_pkg_mgr)"
 
 need_cmd "$PKG_MGR"
 need_cmd sed
