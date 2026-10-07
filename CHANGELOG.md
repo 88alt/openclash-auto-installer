@@ -1,6 +1,14 @@
 # Changelog
 
-## Unreleased
+## v1.3.0 — 2026-10-07
+
+- 重新验证 OpenWrt 25.12.5、24.10.8 和 iStoreOS 25.12.5-2026092410 的 x86_64 安装路径，发布固件与插件验证报告。
+- PassWall / PassWall2 在 APK 环境使用官方签名源，固定公钥摘要、预下载事务软件包并检查最终包记录；签名源版本与 GitHub 不同时明确提示。
+- Nikki 官方脚本改为下载成功且非空后再执行，修复网络失败被管道掩盖而误报安装成功；提前拒绝上游不支持的固件分支，APK 保持签名校验。
+- daed APK 更新检测与安装统一跟随 OpenWrt 专用构建，不再与通用 daed Release 混比。
+- 更新检测保留包修订号，修复 PassWall2 等 `r1` 到 `r2` 的更新漏报。
+- 新增离线回归测试和 CI 检查，并将以下此前 main 上的兼容性修复纳入正式 Release。
+
 
 - 修复 PassWall / PassWall2 只安装 LuCI 包、未补齐上游构建目录中的必需运行依赖，导致 iStoreOS 出现 `tcping`、`geoview`、`chinadns-ng`、`dns2socks` 等缺失的问题；现在优先使用系统软件源，缺失时按当前版本和架构从官方构建目录补齐。
 - PassWall 安装前会把基础 `dnsmasq` 安全切换为其硬依赖的 `dnsmasq-full`；`opkg` 环境先完成覆盖安装再移除旧包，避免下载过程中提前失去本机 DNS。

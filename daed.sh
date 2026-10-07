@@ -760,13 +760,18 @@ main() {
     check_kernel_support "$PKG_MGR"
     check_disk_space
 
-    LATEST_TAG="$(find_latest_tag)"
+    LATEST_TAG=""
+    if [ "$PKG_MGR" = "apk" ]; then
+        log "使用 QiuSimons/luci-app-daed 的 OpenWrt APK 发布，与通用 daed 版本独立"
+    else
+        LATEST_TAG="$(find_latest_tag)"
+    fi
     OLD_VER="$("$DAED_BIN" --version 2>/dev/null | awk '{print $NF}' | head -n1 || true)"
 
     log "系统架构: ${DISTRIB_ARCH:-$(uname -m)}"
     log "匹配 daed 架构: $ASSET_ARCH"
     log "当前已安装版本: ${OLD_VER:-not installed}"
-    log "最新正式版本: $LATEST_TAG"
+    [ -z "$LATEST_TAG" ] || log "最新通用版: $LATEST_TAG"
 
     ensure_unzip
     DAED_ENABLED_BEFORE="$(uci -q get daed.config.enabled 2>/dev/null || printf '0')"

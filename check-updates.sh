@@ -97,8 +97,7 @@ normalize_version() {
     VER="${1:-}"
     VER="${VER#v}"
     VER="${VER#Release}"
-    VER="${VER%%-*}"
-    printf '%s' "$VER"
+    printf '%s' "$VER" | sed 's/-r\([0-9][0-9]*\)$/-\1/'
 }
 
 fetch_latest_tag_jsonfilter() {
@@ -178,6 +177,12 @@ print_result() {
 
     INSTALLED_NORM="$(normalize_version "$INSTALLED")"
     LATEST_NORM="$(normalize_version "$LATEST")"
+    # Release tags without a package revision (for example Nikki v1.26.1)
+    # compare the upstream version; retain revisions when the tag provides one.
+    case "$LATEST_NORM" in
+        *-*) ;;
+        *) INSTALLED_NORM="${INSTALLED_NORM%%-*}" ;;
+    esac
 
     if [ "$INSTALLED_NORM" = "$LATEST_NORM" ]; then
         printf '%s\n' "  状态: 已是最新"
@@ -301,6 +306,16 @@ check_nikki() {
 }
 
 check_daed() {
+    if [ "$PKG_MGR" = "apk" ]; then
+        INSTALLED="$(get_installed_apk_version daed)"
+        BUILD_TAG="$(fetch_latest_tag_jsonfilter luci-daed "$LUCI_DAED_API" || true)"
+        BUILD_LATEST="${BUILD_TAG#daed_}"
+        print_result "daed (OpenWrt APK)" "$INSTALLED" "$BUILD_LATEST"
+        printf '%s\n' "  说明: APK 使用 OpenWrt 专用构建，不与 daeuniverse 通用版比较"
+        LUCI_INSTALLED="$(get_installed_apk_version luci-app-daed)"
+        print_result_no_compare "daed LuCI" "$LUCI_INSTALLED" "$BUILD_TAG" "LuCI 版本独立于核心构建日期"
+        return 0
+    fi
     INSTALLED=""
     if command -v daed >/dev/null 2>&1; then
         INSTALLED="$(daed --version 2>/dev/null | awk '{print $NF}' | head -n1 || true)"

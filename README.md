@@ -38,6 +38,12 @@ wget -qO /usr/bin/openclash-menu https://gitee.com/naiyou88/openclash-auto-insta
 curl -fsSL https://raw.githubusercontent.com/slobys/openclash-auto-installer/main/menu.sh -o /usr/bin/openclash-menu && chmod +x /usr/bin/openclash-menu && openclash-menu
 ```
 
+完整项目方式：
+
+```sh
+git clone https://github.com/slobys/openclash-auto-installer.git && cd openclash-auto-installer && sh menu.sh
+```
+
 菜单结构：
 
 ```text
@@ -51,17 +57,17 @@ curl -fsSL https://raw.githubusercontent.com/slobys/openclash-auto-installer/mai
 
 ## 支持范围
 
-推荐使用：
+截至 **2026-10-07**，已重新验证以下 x86_64 正式版本：
 
-- OpenWrt 24.10.x
-- iStoreOS 24.10.x
-- ImmortalWrt 24.10.x
+| 系统 | 版本 | 包管理器 |
+|------|------|----------|
+| OpenWrt | 25.12.5 | APK |
+| OpenWrt 24.10 分支 | 24.10.8 | OPKG |
+| iStoreOS | 25.12.5-2026092410 | APK |
 
-可尝试但建议先验证：
+OpenClash、PassWall、PassWall2、Nikki、SmartDNS、MosDNS 已在上述官方根文件系统完成隔离安装验证。daed 另在 iStoreOS 官方镜像虚拟机中验证，依赖固件自身的 eBPF/BTF 能力。
 
-- OpenWrt 25.12+ / `apk` 环境
-- OpenWrt 23.05.x / 22.03.x
-- 第三方固件或精简固件
+其他架构、OpenWrt 23.05/22.03、ImmortalWrt、KWRT/QWRT 等第三方固件仍需按实际固件验证；不能仅凭版本号认定兼容。完整版本、校验值和限制见 [验证报告](docs/validation-2026-10-07.md)。
 
 ---
 
@@ -70,8 +76,8 @@ curl -fsSL https://raw.githubusercontent.com/slobys/openclash-auto-installer/mai
 | 插件 | 支持内容 | 说明 |
 |------|----------|------|
 | OpenClash | 安装 / 更新 / 核心安装 / 卸载 / 更新检测 | 自动识别 Meta / Smart Meta 内核 |
-| PassWall | 安装 / 更新 / 卸载 / 更新检测 | 支持 `opkg`；OpenWrt 25.12+ 下尝试安装上游 `.apk` 构建 |
-| PassWall2 | 安装 / 更新 / 卸载 / 更新检测 | 支持 `opkg`；OpenWrt 25.12+ 下尝试安装上游 `.apk` 构建 |
+| PassWall | 安装 / 更新 / 卸载 / 更新检测 | 支持 `opkg`；25.12 APK 使用上游签名源 |
+| PassWall2 | 安装 / 更新 / 卸载 / 更新检测 | 支持 `opkg`；25.12 APK 使用上游签名源 |
 | Nikki | 安装 / 更新 / 卸载 / 更新检测 | 需要 `firewall4/nftables` |
 | SmartDNS | 安装 / 更新 / 卸载 / 更新检测 | 使用官方 GitHub Release 包 |
 | MosDNS | 安装 / 更新 / 卸载 / 更新检测 | 使用 `sbwml/luci-app-mosdns` GitHub Release 包 |
@@ -87,7 +93,7 @@ OpenWrt 25.12+ 使用 `apk` 包管理器，本项目已同步适配：
 - 检查更新
 - 卸载
 
-PassWall / PassWall2 在 25.12+ 下会尝试安装上游 `.apk` 构建，实际可用性取决于上游是否发布对应架构包。
+PassWall / PassWall2 在 25.12 APK 环境优先使用上游签名源，校验公钥摘要并保持包签名验证；先下载事务需要的软件包再安装。签名源与 GitHub Release 不一致时会明确提示，不强行切换到未验证签名的包。实际可用性仍取决于上游是否提供对应架构和依赖。
 
 ---
 
@@ -95,8 +101,8 @@ PassWall / PassWall2 在 25.12+ 下会尝试安装上游 `.apk` 构建，实际�
 
 - 推荐 OpenWrt / iStoreOS / ImmortalWrt 24.x 及以上，整体更稳定。
 - 低版本、魔改固件、精简固件可能遇到依赖或软件源不兼容。
-- OpenWrt 25.12+ 的 `apk` 环境已做基础适配，但仍可能受上游包影响。
-- Nikki 不支持 `iptables` 防火墙栈，需要 `firewall4/nftables`。
+- OpenWrt 25.12.5 与 iStoreOS 25.12.5 的 x86_64 APK 安装路径已验证；其他版本、架构仍可能受上游包影响。
+- Nikki 不支持 `iptables` 防火墙栈，需要 `firewall4/nftables`；官方源仅支持 24.10、25.12 和纯 `SNAPSHOT`，不支持 `23.05-SNAPSHOT`。
 - SmartDNS 只安装程序和 LuCI 界面，不自动接管或改写 DNS 配置。
 - MosDNS 只安装程序、LuCI 界面和上游 Release 包内的基础数据包，不自动接管或改写 DNS 配置。
 - daed 全新安装后，LuCI 中的“启用”选项默认不勾选，请在“服务 → DAED”中手动启用；脚本不会在安装结束时额外停止或禁用服务。启动后可查看日志和打开仪表板，也可直接访问 `http://路由器IP:2023`。
